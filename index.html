@@ -28,6 +28,37 @@
       padding: 16px;
       display: grid;
       place-items: center;
+      gap: 12px;
+    }
+
+    #controlsPanel {
+      width: min(100%, 980px);
+      display: grid;
+      justify-items: start;
+      gap: 8px;
+      color: #f8fafc;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    #instructions {
+      white-space: pre-line;
+    }
+
+    #startAutomationButton {
+      font: inherit;
+      cursor: pointer;
+      border: 1px solid #3b82f6;
+      border-radius: 8px;
+      padding: 6px 10px;
+      background: #2563eb;
+      color: #f8fafc;
+      font-weight: 700;
+    }
+
+    #startAutomationButton:disabled {
+      cursor: not-allowed;
+      opacity: 0.5;
     }
 
     #gameShell {
@@ -49,6 +80,10 @@
 </head>
 <body>
   <main>
+    <div id="controlsPanel">
+      <div id="instructions">INSTRUCTIONS:<br>1. Click inside emulator window<br>2. Wait until you see Vic20 screen<br>2. Click &quot;Start Automation&quot;</div>
+      <button id="startAutomationButton" type="button" disabled>Start Automation</button>
+    </div>
     <div id="gameShell"></div>
   </main>
 
@@ -2494,7 +2529,7 @@
     const RAM_EXPANSION = "35kB";
 
     // Requested automation timings.
-    const INITIAL_AUTOMATION_DELAY_MS = 10000;
+    const INITIAL_AUTOMATION_DELAY_MS = 5000;
     const AFTER_FIRST_POKE_DELAY_MS = 3000;
     const AFTER_LOAD_DELAY_MS = 5000;
     const AFTER_SECOND_POKE_DELAY_MS = 3000;
@@ -2557,9 +2592,11 @@
     ];
 
     const gameShell = document.getElementById("gameShell");
+    const startAutomationButton = document.getElementById("startAutomationButton");
 
     let selectedFile = null;
     let started = false;
+    let coreStarted = false;
     let automationRunning = false;
     let automationHasRun = false;
     let automationTimer = null;
@@ -2603,6 +2640,14 @@
 
     window.addEventListener("unhandledrejection", (event) => {
       console.error(event.reason && event.reason.message ? event.reason.message : event.reason);
+    });
+
+    startAutomationButton.addEventListener("click", () => {
+      if (!coreStarted || automationRunning || automationHasRun) return;
+
+      startAutomationButton.disabled = true;
+      applyLiveKeyboardSettings();
+      queueAutomation("Start Automation button clicked.", 0);
     });
 
     startEmulator();
@@ -2681,8 +2726,9 @@
 
       window.EJS_onGameStart = () => {
         log("VIC-20 core started.");
+        coreStarted = true;
         applyLiveKeyboardSettings();
-        queueAutomation("VIC-20 core is running. Starting 10 second automation delay.", INITIAL_AUTOMATION_DELAY_MS);
+        startAutomationButton.disabled = false;
       };
 
       const loader = document.createElement("script");
@@ -2766,6 +2812,10 @@
         setStatus("Automation complete. The final RUN command has been entered.");
       } catch (error) {
         console.error(error && error.message ? error.message : error);
+        if (coreStarted && startAutomationButton) {
+          startAutomationButton.disabled = false;
+          automationHasRun = false;
+        }
       } finally {
         automationRunning = false;
       }
